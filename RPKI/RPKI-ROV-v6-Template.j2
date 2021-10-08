@@ -1,0 +1,47 @@
+set groups RPKI-VALIDATION-SESSION routing-options validation group <*> session <*> refresh-time 600
+set groups RPKI-VALIDATION-SESSION routing-options validation group <*> session <*> hold-time 1800
+set groups RPKI-VALIDATION-SESSION routing-options validation group <*> session <*> record-lifetime 3600
+set groups RPKI-VALIDATION-SESSION routing-options validation group <*> session <*> port 8323
+
+set routing-options validation apply-groups RPKI-VALIDATION-SESSION
+set routing-options validation group RPKI-VALIDATOR max-sessions 4
+set routing-options validation group RPKI-VALIDATOR session 2600:6c7f:9330:1502::157:80 local-address {{ipv6}}
+set routing-options validation group RPKI-VALIDATOR session 2600:6c7f:9330:1502::157:81 local-address {{ipv6}}
+set routing-options validation group RPKI-VALIDATOR session 2600:6c7f:9340:1502::189:80 local-address {{ipv6}}
+set routing-options validation group RPKI-VALIDATOR session 2600:6c7f:9340:1502::189:81 local-address {{ipv6}}
+
+set policy-options prefix-list v6-RPKI-PEERS apply-path "routing-options validation group <*> session <*:*>"
+
+set policy-options policy-statement RPKI-COMMUNITIES term VALID from protocol bgp
+set policy-options policy-statement RPKI-COMMUNITIES term VALID from validation-database valid
+set policy-options policy-statement RPKI-COMMUNITIES term VALID then validation-state valid
+set policy-options policy-statement RPKI-COMMUNITIES term VALID then community add CS-ORIGIN-VALIDATION-STATE-VALID
+set policy-options policy-statement RPKI-COMMUNITIES term VALID then next policy
+set policy-options policy-statement RPKI-COMMUNITIES term INVALID from protocol bgp
+set policy-options policy-statement RPKI-COMMUNITIES term INVALID from validation-database invalid
+set policy-options policy-statement RPKI-COMMUNITIES term INVALID then validation-state invalid
+set policy-options policy-statement RPKI-COMMUNITIES term INVALID then community add CS-ORIGIN-VALIDATION-STATE-INVALID
+set policy-options policy-statement RPKI-COMMUNITIES term INVALID then next policy
+set policy-options policy-statement RPKI-COMMUNITIES term UNKNOWN from protocol bgp
+set policy-options policy-statement RPKI-COMMUNITIES term UNKNOWN from validation-database unknown
+set policy-options policy-statement RPKI-COMMUNITIES term UNKNOWN then validation-state unknown
+set policy-options policy-statement RPKI-COMMUNITIES term UNKNOWN then community add CS-ORIGIN-VALIDATION-STATE-UNKNOWN
+set policy-options policy-statement RPKI-COMMUNITIES term UNKNOWN then next policy
+
+set policy-options community CS-ORIGIN-VALIDATION-STATE-INVALID members {{ASN}}:4302
+set policy-options community CS-ORIGIN-VALIDATION-STATE-UNKNOWN members {{ASN}}:4301
+set policy-options community CS-ORIGIN-VALIDATION-STATE-VALID members {{ASN}}:4300
+
+set firewall family inet6 filter v6-RPKI term accept-RPKI from source-prefix-list v6-RPKI-PEERS
+set firewall family inet6 filter v6-RPKI term accept-RPKI from destination-prefix-list v6-LOCALHOST
+set firewall family inet6 filter v6-RPKI term accept-RPKI from next-header tcp
+set firewall family inet6 filter v6-RPKI term accept-RPKI from port 8323
+set firewall family inet6 filter v6-RPKI term accept-RPKI then count accept-rpki
+set firewall family inet6 filter v6-RPKI term accept-RPKI then accept
+set firewall family inet6 filter v6-RPKI term block-RPKI from next-header tcp
+set firewall family inet6 filter v6-RPKI term block-RPKI from port 8323
+set firewall family inet6 filter v6-RPKI term block-RPKI then count block-rpki
+set firewall family inet6 filter v6-RPKI term block-RPKI then discard
+
+set firewall family inet6 filter Protect-REv6 term RPKIv6 filter v6-RPKI
+

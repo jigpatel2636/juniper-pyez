@@ -1,0 +1,8 @@
+{%for group, policy  in dict.items()%}
+{% if policy != '' %}
+insert protocols bgp group {{group}} import RPKI-COMMUNITIES before {{policy}}
+{% else %}
+set protocols bgp group {{group}} import RPKI-COMMUNITIES
+{% endif %}
+{%endfor%}
+insert firewall family inet6 filter Protect-REv6 term RPKIv6 before term ESTABLISHEDv6
